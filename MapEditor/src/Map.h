@@ -1,0 +1,45 @@
+// src/Map.h
+#pragma once
+#include <map>
+#include <memory>
+#include <string>
+#include "Sector.h"
+
+class Map
+{
+public:
+    Map(int widthInTiles, int heightInTiles);
+
+    int GetWidth() const;   // In tiles
+    int GetHeight() const;
+
+    int GetSectorCountX() const;
+    int GetSectorCountY() const;
+
+    // Get sector by sector coordinates
+    Sector* GetSector(int sectorX, int sectorY);
+
+    // Create or get sector at sector coordinates
+    Sector& CreateOrGetSector(int sectorX, int sectorY);
+
+    // Get tile by absolute map coordinates
+    Tile* GetTile(int x, int y);
+
+    // Set tile by absolute map coordinates
+    void SetTile(int x, int y, const Tile& tile);
+
+    // Map metadata
+    void SetMapName(const std::string& name);
+    const std::string& GetMapName() const;
+
+private:
+    int m_width;   // tiles
+    int m_height;
+
+    int m_sectorCountX;
+    int m_sectorCountY;
+
+    std::map<std::pair<int, int>, std::unique_ptr<Sector>> m_sectors;
+
+    std::string m_mapName;
+};

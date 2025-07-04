@@ -1,5 +1,4 @@
-
-#include "App.h"
+#include "Core/App.h"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 {

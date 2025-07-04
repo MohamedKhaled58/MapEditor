@@ -1,6 +1,6 @@
 #pragma once
-#include "GridOverlay.h"
 #include <string>
+#include <Core/GridOverlay.h>
 
 namespace DMapFile {
 

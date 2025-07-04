@@ -1,25 +1,57 @@
+// src/DnsExporter.cpp
 #include "DnsExporter.h"
 #include <fstream>
 #include <filesystem>
+#include <iostream>
 
-void DnsExporter::ExportTilesToDns(const std::vector<Tile>& tiles, const std::string& folderPath, int tileSize) {
-    std::filesystem::create_directories(folderPath);
-
-    for (const auto& tile : tiles) {
-        std::string fileName = folderPath + "/tile_" + std::to_string(tile.x) + "_" + std::to_string(tile.y) + ".dns";
-        std::ofstream out(fileName, std::ios::binary);
-
-        if (!out.is_open())
-            continue;
-
-        uint32_t header = 0x444E5301; // 'DNS\x01' magic
-        out.write(reinterpret_cast<const char*>(&header), sizeof(header));
-
-        out.write(reinterpret_cast<const char*>(&tile.x), sizeof(int));
-        out.write(reinterpret_cast<const char*>(&tile.y), sizeof(int));
-        uint8_t walkableFlag = tile.walkable ? 1 : 0;
-        out.write(reinterpret_cast<const char*>(&walkableFlag), sizeof(uint8_t));
-
-        out.close();
+bool DnsExporter::ExportTilesToDns(const std::vector<Tile>& tiles, const std::string& outputFolder)
+{
+    namespace fs = std::filesystem;
+    if (!fs::exists(outputFolder))
+    {
+        if (!fs::create_directories(outputFolder))
+        {
+            std::cerr << "Failed to create output directory: " << outputFolder << "\n";
+            return false;
+        }
     }
+
+    for (const Tile& tile : tiles)
+    {
+        std::string filename = outputFolder + "/tile_" + std::to_string(tile.GetX()) + "_" + std::to_string(tile.GetY()) + ".dns";
+        if (!WriteDnsFile(tile, filename))
+        {
+            std::cerr << "Failed to write tile file: " << filename << "\n";
+            return false;
+        }
+    }
+    return true;
+}
+
+bool DnsExporter::WriteDnsFile(const Tile& tile, const std::string& filePath)
+{
+    std::ofstream file(filePath, std::ios::binary);
+    if (!file.is_open())
+        return false;
+
+    // Write tile data in binary format per Conquer Online .dns spec
+
+    // Example binary layout (little endian):
+    // 4 bytes: Flags
+    // 2 bytes: Height
+    // 2 bytes: TextureIndex
+    // 4 bytes: Overlay
+
+    uint32_t flags = tile.GetFlags();
+    uint16_t height = tile.GetHeight();
+    uint16_t texIndex = tile.GetTextureIndex();
+    uint32_t overlay = tile.GetOverlay();
+
+    file.write(reinterpret_cast<const char*>(&flags), sizeof(flags));
+    file.write(reinterpret_cast<const char*>(&height), sizeof(height));
+    file.write(reinterpret_cast<const char*>(&texIndex), sizeof(texIndex));
+    file.write(reinterpret_cast<const char*>(&overlay), sizeof(overlay));
+
+    file.close();
+    return true;
 }

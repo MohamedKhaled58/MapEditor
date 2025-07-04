@@ -1,60 +1,137 @@
-#include "GridOverlay.h"
-#include "imgui.h"
+// ImGuiSetup.cpp — Upgraded for Modern Dear ImGui with Docking/Viewport Support
 
+#include "UI/ImGuiSetup.h"
+#include <imgui.h>
+#include <backends/imgui_impl_win32.h>
+#include <backends/imgui_impl_dx11.h>
+#include <d3d11.h>
+#include <tchar.h>
 
-std::vector<Tile> GridOverlay::GetFlatTiles() const {
-    std::vector<Tile> flatTiles;
-    for (int y = 0; y < tiles.size(); ++y) {
-        for (int x = 0; x < tiles[y].size(); ++x) {
-            Tile t;
-            t.x = x;
-            t.y = y;
-            t.walkable = tiles[y][x].walkable;
-            flatTiles.push_back(t);
-        }
-    }
-    return flatTiles;
+// Globals
+static ID3D11Device*           g_pd3dDevice = nullptr;
+static ID3D11DeviceContext*    g_pd3dDeviceContext = nullptr;
+static IDXGISwapChain*         g_pSwapChain = nullptr;
+static ID3D11RenderTargetView* g_mainRenderTargetView = nullptr;
+static ImGuiContext*           g_ImGuiContext = nullptr;
+static WNDCLASSEXW             g_wc = {};
+static HWND                    g_hWnd = nullptr;
+
+// Helper to create render target
+static void CreateRenderTarget()
+{
+    ID3D11Texture2D* pBackBuffer;
+    g_pSwapChain->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer));
+    g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_mainRenderTargetView);
+    pBackBuffer->Release();
 }
 
-void GridOverlay::Draw(ImVec2 origin, int tileSize, int imgWidth, int imgHeight)
+// Helper to clean up render target
+static void CleanupRenderTarget()
 {
-    int cols = imgWidth / tileSize;
-    int rows = imgHeight / tileSize;
+    if (g_mainRenderTargetView) { g_mainRenderTargetView->Release(); g_mainRenderTargetView = nullptr; }
+}
 
-    if (tiles.size() != cols || (cols > 0 && tiles[0].size() != rows)) {
-        tiles.resize(cols, std::vector<GridTile>(rows, GridTile{ true }));
-    }
+bool ImGuiLayer::Init(HWND hWnd)
+{
+    g_hWnd = hWnd;
 
-    ImDrawList* draw_list = ImGui::GetWindowDrawList();
-    for (int x = 0; x < cols; ++x)
+    DXGI_SWAP_CHAIN_DESC sd = {};
+    sd.BufferCount = 2;
+    sd.BufferDesc.Width = 0;
+    sd.BufferDesc.Height = 0;
+    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    sd.OutputWindow = hWnd;
+    sd.SampleDesc.Count = 1;
+    sd.Windowed = TRUE;
+    sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+    sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+    UINT createDeviceFlags = 0;
+#ifdef _DEBUG
+    createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+    D3D_FEATURE_LEVEL featureLevel;
+    const D3D_FEATURE_LEVEL featureLevelArray[1] = { D3D_FEATURE_LEVEL_11_0 };
+
+    if (D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags,
+        featureLevelArray, 1, D3D11_SDK_VERSION, &sd, &g_pSwapChain,
+        &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext) != S_OK)
+        return false;
+
+    CreateRenderTarget();
+
+    IMGUI_CHECKVERSION();
+    g_ImGuiContext = ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+
+    ImGui::StyleColorsDark();
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     {
-        for (int y = 0; y < rows; ++y)
-        {
-            ImVec2 tl = ImVec2(origin.x + x * tileSize, origin.y + y * tileSize);
-            ImVec2 br = ImVec2(tl.x + tileSize, tl.y + tileSize);
-            ImU32 color = tiles[x][y].walkable ? IM_COL32(0, 255, 0, 50) : IM_COL32(255, 0, 0, 120);
-            draw_list->AddRectFilled(tl, br, color);
-            draw_list->AddRect(tl, br, IM_COL32(255, 255, 255, 40));
-        }
+        style.WindowRounding = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
     }
+
+    ImGui_ImplWin32_Init(hWnd);
+    ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
+
+    return true;
 }
 
-void GridOverlay::HandleMouse(ImVec2 origin, int tileSize, int imgWidth, int imgHeight)
+void ImGuiLayer::Shutdown()
 {
-    ImVec2 mouse = ImGui::GetIO().MousePos;
-    if (!ImGui::IsMouseDown(0))
-        return;
+    ImGui_ImplDX11_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext(g_ImGuiContext);
+    CleanupRenderTarget();
+    if (g_pSwapChain) { g_pSwapChain->Release(); g_pSwapChain = nullptr; }
+    if (g_pd3dDeviceContext) { g_pd3dDeviceContext->Release(); g_pd3dDeviceContext = nullptr; }
+    if (g_pd3dDevice) { g_pd3dDevice->Release(); g_pd3dDevice = nullptr; }
+}
 
-    int x = (int)((mouse.x - origin.x) / tileSize);
-    int y = (int)((mouse.y - origin.y) / tileSize);
+void ImGuiLayer::BeginFrame()
+{
+    ImGui_ImplDX11_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
 
-    int cols = imgWidth / tileSize;
-    int rows = imgHeight / tileSize;
-    if (x >= 0 && x < cols && y >= 0 && y < rows) {
-        tiles[x][y].walkable = false;
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGuiID dockspace_id = ImGui::DockSpaceOverViewport(viewport);
+    (void)dockspace_id; // Optional: remove if you use it later
+}
+
+void ImGuiLayer::EndFrame()
+{
+    ImGui::Render();
+    g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, nullptr);
+    g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, (float*)&ImVec4(0.1f, 0.1f, 0.1f, 1.0f));
+    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+    if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+    }
+
+    g_pSwapChain->Present(1, 0); // Present with vsync
+}
+
+void ImGuiLayer::Resize(UINT width, UINT height)
+{
+    if (g_pSwapChain)
+    {
+        CleanupRenderTarget();
+        g_pSwapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0);
+        CreateRenderTarget();
     }
 }
 
-std::vector<std::vector<GridTile>>& GridOverlay::GetTiles() {
-    return tiles;
+ID3D11Device* ImGuiLayer::GetD3DDevice()
+{
+    return g_pd3dDevice;
 }

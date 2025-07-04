@@ -1,13 +1,17 @@
+// src/DnsExporter.h
 #pragma once
-#include <vector>
 #include <string>
+#include <vector>
+#include "Tile.h"
 
-struct Tile {
-    int x, y;
-    bool walkable;
-};
-
-class DnsExporter {
+class DnsExporter
+{
 public:
-    static void ExportTilesToDns(const std::vector<Tile>& tiles, const std::string& folderPath, int tileSize);
+    // Export tiles to .dns files in folder
+    // tileSize: dimension of tile (usually 32)
+    static bool ExportTilesToDns(const std::vector<Tile>& tiles, const std::string& outputFolder);
+
+private:
+    // Write one tile to .dns file
+    static bool WriteDnsFile(const Tile& tile, const std::string& filePath);
 };
