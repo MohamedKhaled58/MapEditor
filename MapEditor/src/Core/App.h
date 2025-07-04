@@ -1,6 +1,7 @@
+// Refactored structure for MapEditor
 
+// Directory: src/Core/App.h
 #pragma once
-
 #include <Windows.h>
 
 class App {
@@ -9,7 +10,7 @@ public:
     int Run();
 
 private:
-    HWND hWnd = nullptr;
+    HWND hWnd;
     bool CreateMainWindow(HINSTANCE hInstance);
     void MainLoop();
     void Cleanup();
