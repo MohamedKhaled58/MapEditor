@@ -1,6 +1,21 @@
 #include "GridOverlay.h"
 #include "imgui.h"
 
+
+std::vector<Tile> GridOverlay::GetFlatTiles() const {
+    std::vector<Tile> flatTiles;
+    for (int y = 0; y < tiles.size(); ++y) {
+        for (int x = 0; x < tiles[y].size(); ++x) {
+            Tile t;
+            t.x = x;
+            t.y = y;
+            t.walkable = tiles[y][x].walkable;
+            flatTiles.push_back(t);
+        }
+    }
+    return flatTiles;
+}
+
 void GridOverlay::Draw(ImVec2 origin, int tileSize, int imgWidth, int imgHeight)
 {
     int cols = imgWidth / tileSize;

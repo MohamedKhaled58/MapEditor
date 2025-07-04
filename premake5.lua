@@ -1,5 +1,5 @@
 workspace "MapEditor"
-	architecture "x86"
+architecture "x64"
 
 	configurations {
 		"Debug",
@@ -34,8 +34,6 @@ workspace "MapEditor"
 			"%{prj.name}/src/**.cpp",
 			"%{prj.name}/vendor/libigl-stb/stb_image.h", -- only if used
 			"%{prj.name}/vendor/imgui/*.cpp",
-			"%{prj.name}/vendor/imgui/backends/imgui_impl_win32.cpp",
-			"%{prj.name}/vendor/imgui/backends/imgui_impl_dx11.cpp"
 		}
 		
 		includedirs {

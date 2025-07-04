@@ -1,5 +1,30 @@
 #include "DMapFile.h"
 #include <fstream>
+#include <filesystem>
+
+#include "DnsExporter.h"
+#include "GridOverlay.h"
+
+
+
+void DMapFile::ExportDnsTiles(const std::string& directory, const std::vector<std::vector<GridTile>>& tiles)
+{
+    std::filesystem::create_directories(directory);
+
+    for (size_t x = 0; x < tiles.size(); ++x) {
+        for (size_t y = 0; y < tiles[x].size(); ++y) {
+            std::string filename = directory + "/tile_" + std::to_string(x) + "_" + std::to_string(y) + ".dns";
+            std::ofstream out(filename, std::ios::binary);
+            if (out) {
+                uint8_t walkable = tiles[x][y].walkable ? 1 : 0;
+                out.write((char*)&x, sizeof(uint32_t));
+                out.write((char*)&y, sizeof(uint32_t));
+                out.write((char*)&walkable, sizeof(uint8_t));
+            }
+        }
+    }
+}
+
 
 bool DMapFile::Save(const std::string& filename, const std::vector<std::vector<GridTile>>& tiles)
 {

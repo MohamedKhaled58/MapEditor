@@ -7,9 +7,9 @@
 #include <string>
 
 // ✅ Only include headers
-#define IMGUI_IMPL_WIN32_ENABLE_DEFAULT_WND_PROC_HANDLER
 #include <backends/imgui_impl_win32.h>
 #include <backends/imgui_impl_dx11.h>
+#include <DnsExporter.h>
 
 static ID3D11ShaderResourceView* g_Texture = nullptr;
 static int g_ImageWidth = 0, g_ImageHeight = 0;
@@ -20,6 +20,7 @@ static char g_SavePath[256] = "Assets/export.dmap";
 static bool g_ImageLoaded = false;
 static ID3D11Device* g_Device = nullptr;
 
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 bool LoadMapTexture() {
     if (g_Texture) {
         g_Texture->Release();
@@ -31,7 +32,7 @@ bool LoadMapTexture() {
 static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     // ✅ This works if header is included
-    if (ImGui_ImplWin_WndProcHandler(hWnd, msg, wParam, lParam))
+    if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
         return true;
 
     switch (msg)
@@ -116,7 +117,17 @@ void App::MainLoop()
         ImGui::InputText("Save Path", g_SavePath, IM_ARRAYSIZE(g_SavePath));
         if (ImGui::Button("Export .dmap")) {
             DMapFile::Save(g_SavePath, g_Grid.GetTiles());
+
+            // Save individual .dns tiles too
+            std::string dnsDir = "Assets/dns_tiles"; // You can customize path
+            DMapFile::ExportDnsTiles(dnsDir, g_Grid.GetTiles());
         }
+
+        if (ImGui::Button("Export Tiles (.dns)")) {
+            auto flatTiles = g_Grid.GetFlatTiles();  // ✅ now returns flat vector<Tile>
+            DnsExporter::ExportTilesToDns(flatTiles, "Assets/Tiles", g_TileSize);
+        }
+
 
         if (g_ImageLoaded && g_Texture) {
             ImGui::Text("Map Size: %d x %d", g_ImageWidth, g_ImageHeight);
