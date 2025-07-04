@@ -1,0 +1,3 @@
+[submodule "MapEditor/vendor/imgui"]
+	path = MapEditor/vendor/imgui
+	url = https://github.com/ocornut/imgui.git
