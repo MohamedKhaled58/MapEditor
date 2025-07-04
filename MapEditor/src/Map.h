@@ -1,9 +1,10 @@
-// src/Map.h
+﻿// src/Map.h
 #pragma once
 #include <map>
 #include <memory>
 #include <string>
 #include "Sector.h"
+#include <vector>
 
 class Map
 {
@@ -12,6 +13,8 @@ public:
 
     int GetWidth() const;   // In tiles
     int GetHeight() const;
+
+    void Resize(int width, int height);
 
     int GetSectorCountX() const;
     int GetSectorCountY() const;
@@ -24,6 +27,7 @@ public:
 
     // Get tile by absolute map coordinates
     Tile* GetTile(int x, int y);
+    const Tile* GetTile(int x, int y) const;      // ✅ new const-overload
 
     // Set tile by absolute map coordinates
     void SetTile(int x, int y, const Tile& tile);
@@ -33,8 +37,10 @@ public:
     const std::string& GetMapName() const;
 
 private:
-    int m_width;   // tiles
-    int m_height;
+    int m_width = 0;
+    int m_height = 0;
+    std::vector<std::vector<Tile>> m_tiles;
+
 
     int m_sectorCountX;
     int m_sectorCountY;

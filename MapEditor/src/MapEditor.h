@@ -1,7 +1,10 @@
 #pragma once
 #include "Map.h"
-#include "Export/DnsExporter.h"
+#include "DnsExporter.h"
 #include "DmapExporter.h"
+#include "Texture2D.h" // <- your wrapper class for ImGui+DirectX textures
+
+
 
 // Other includes...
 
@@ -13,6 +16,8 @@ public:
     void DrawUI();
 
     void ExportMap(const std::string& dnsFolder, const std::string& dmapFile);
+    void LoadMap(const std::string& dmapFile, const std::string& dnsFolder);
+    void LoadBackgroundImage(const std::string& path);
 
     Map& GetMap() { return m_map; }
 
@@ -27,6 +32,8 @@ private:
     int m_selectedY = -1;
 
     // Additional editor state variables...
+    std::shared_ptr<Texture2D> m_backgroundImage;
+    std::string m_backgroundPath;
 
     int m_tileSize = 32;  // Typical tile size in pixels
 };

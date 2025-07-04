@@ -30,8 +30,8 @@ private:
     int m_x;
     int m_y;
 
-    uint32_t m_flags;
-    uint16_t m_height;
-    uint16_t m_textureIndex;
-    uint32_t m_overlay;
+    uint32_t m_flags = 0;
+    uint16_t m_height = 0;
+    uint16_t m_textureIndex = 0;
+    uint32_t m_overlay = 0;
 };

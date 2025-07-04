@@ -3,6 +3,7 @@
 #include <fstream>
 #include <filesystem>
 #include <iostream>
+#include <Map.h>
 
 bool DnsExporter::ExportTilesToDns(const std::vector<Tile>& tiles, const std::string& outputFolder)
 {
@@ -53,5 +54,46 @@ bool DnsExporter::WriteDnsFile(const Tile& tile, const std::string& filePath)
     file.write(reinterpret_cast<const char*>(&overlay), sizeof(overlay));
 
     file.close();
+    return true;
+}
+
+
+
+
+bool DnsExporter::ExportMapToDns(const Map& map, const std::string& outputFolder)
+{
+    std::filesystem::create_directories(outputFolder);
+    const int sectorSize = 32;
+
+    int sectorsX = (map.GetWidth() + sectorSize - 1) / sectorSize;
+    int sectorsY = (map.GetHeight() + sectorSize - 1) / sectorSize;
+
+    for (int sy = 0; sy < sectorsY; ++sy)
+    {
+        for (int sx = 0; sx < sectorsX; ++sx)
+        {
+            std::string filename = outputFolder + "/sector_" + std::to_string(sx) + "_" + std::to_string(sy) + ".dns";
+            std::ofstream out(filename, std::ios::binary);
+            if (!out) continue;
+
+            out.write(reinterpret_cast<const char*>(&sectorSize), sizeof(int));
+            out.write(reinterpret_cast<const char*>(&sectorSize), sizeof(int));
+
+            Tile empty{};
+            for (int y = 0; y < sectorSize; ++y)
+            {
+                for (int x = 0; x < sectorSize; ++x)
+                {
+                    int mapX = sx * sectorSize + x;
+                    int mapY = sy * sectorSize + y;
+                    const Tile* tile = map.GetTile(mapX, mapY); // use const Tile*
+
+                    out.write(reinterpret_cast<const char*>(tile ? tile : &empty), sizeof(Tile));
+                }
+            }
+
+        }
+    }
+
     return true;
 }

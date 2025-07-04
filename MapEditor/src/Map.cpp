@@ -21,6 +21,19 @@ Sector* Map::GetSector(int sectorX, int sectorY)
         return it->second.get();
     return nullptr;
 }
+void Map::Resize(int width, int height)
+{
+    m_width = width;
+    m_height = height;
+    m_tiles.resize(height, std::vector<Tile>(width));
+}
+const Tile* Map::GetTile(int x, int y) const
+{
+    if (x < 0 || y < 0 || x >= m_width || y >= m_height)
+        return nullptr;
+    return &m_tiles[y][x];
+}
+
 
 Sector& Map::CreateOrGetSector(int sectorX, int sectorY)
 {

@@ -1,5 +1,8 @@
-#include "MapEditor.h"
+﻿#include "MapEditor.h"
 #include "imgui.h"
+#include "DmapLoader.h"
+#include <filesystem>
+#include <iostream>
 
 MapEditor::MapEditor(int width, int height)
     : m_map(width, height)
@@ -10,6 +13,35 @@ MapEditor::MapEditor(int width, int height)
 void MapEditor::DrawUI()
 {
     ImGui::Begin("Map Editor");
+
+
+    static char imagePath[256] = "assets/download.jpg";
+
+    ImGui::InputText("Background Image", imagePath, IM_ARRAYSIZE(imagePath));
+    if (ImGui::Button("Load Background"))
+    {
+        LoadBackgroundImage(imagePath); // Call your image loader
+    }
+
+
+    static std::string dmapPath = "maps/map1.dmap";
+    static std::string dnsFolder = "maps/map1_dns";
+
+    char dmapBuf[256]; strcpy(dmapBuf, dmapPath.c_str());
+    char dnsBuf[256]; strcpy(dnsBuf, dnsFolder.c_str());
+
+    if (ImGui::InputText("DMAP File", dmapBuf, sizeof(dmapBuf)))
+        dmapPath = dmapBuf;
+    if (ImGui::InputText("DNS Folder", dnsBuf, sizeof(dnsBuf)))
+        dnsFolder = dnsBuf;
+
+    if (ImGui::Button("Load Map"))
+    {
+        LoadMap(dmapPath, dnsFolder);
+    }
+
+
+
 
     ImGui::Text("Map: %s", m_map.GetMapName().c_str());
 
@@ -117,29 +149,43 @@ void MapEditor::DrawUI()
     ImGui::End();
 }
 
+void MapEditor::LoadMap(const std::string& dmapFile, const std::string& dnsFolder)
+{
+    if (DmapLoader::LoadMap(m_map, dmapFile, dnsFolder))
+    {
+        m_selectedX = m_selectedY = -1;
+        m_map.SetMapName(std::filesystem::path(dmapFile).stem().string());
+    }
+}
+
+
+void MapEditor::LoadBackgroundImage(const std::string& path)
+{
+    m_backgroundPath = path;
+    m_backgroundImage = std::make_shared<Texture2D>();
+    if (!m_backgroundImage->LoadFromFile(path))
+    {
+        m_backgroundImage.reset();
+        std::cerr << "Failed to load background image: " << path << "\n";
+    }
+}
+
+
 
 void MapEditor::ExportMap(const std::string& dnsFolder, const std::string& dmapFile)
 {
-    // Export all tiles to .dns files
-    std::vector<Tile> allTiles;
-    for (int y = 0; y < m_map.GetHeight(); ++y)
+    if (!DnsExporter::ExportMapToDns(m_map, dnsFolder))
     {
-        for (int x = 0; x < m_map.GetWidth(); ++x)
-        {
-            Tile* tile = m_map.GetTile(x, y);
-            if (tile)
-                allTiles.push_back(*tile);
-        }
+        std::cerr << "❌ Failed to export DNS tiles.\n";
+        return;
     }
 
-    if (!DnsExporter::ExportTilesToDns(allTiles, dnsFolder))
-    {
-        // Handle error
-    }
-
-    // Export the .dmap file
     if (!DmapExporter::ExportDmap(m_map, dmapFile, dnsFolder))
     {
-        // Handle error
+        std::cerr << "❌ Failed to export DMAP.\n";
+        return;
     }
+
+    std::cout << "✅ Map export complete: " << dmapFile << "\n";
 }
+

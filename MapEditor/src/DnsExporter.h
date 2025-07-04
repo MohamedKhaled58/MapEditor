@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "Tile.h"
+#include <Map.h>
 
 class DnsExporter
 {
@@ -10,6 +11,7 @@ public:
     // Export tiles to .dns files in folder
     // tileSize: dimension of tile (usually 32)
     static bool ExportTilesToDns(const std::vector<Tile>& tiles, const std::string& outputFolder);
+    static bool ExportMapToDns(const Map& map, const std::string& outputFolder);
 
 private:
     // Write one tile to .dns file
