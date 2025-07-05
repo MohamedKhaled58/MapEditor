@@ -1,77 +1,81 @@
 #include "Texture2D.h"
 #include <wincodec.h>
-#include <wrl.h>
+#include <wrl/client.h>
 #include <d3d11.h>
 #include <iostream>
-#include <vector>
 
-extern ID3D11Device* g_pd3dDevice; // Declare globally from main.cpp
+extern ID3D11Device* g_pd3dDevice;
 
-Texture2D::Texture2D() = default;
-Texture2D::~Texture2D() = default;
+Texture2D::Texture2D() {}
+Texture2D::~Texture2D() {}
 
-bool Texture2D::IsValid() const
+bool Texture2D::LoadFromFile(const std::string& path)
 {
-    return m_srv != nullptr;
-}
 
-ID3D11ShaderResourceView* Texture2D::GetSRV() const
-{
-    return m_srv.Get();
-}
+    if (!g_pd3dDevice)
+    {
+        std::cerr << "Error: Direct3D device not initialized!\n";
+        return false;
+    }
+    Microsoft::WRL::ComPtr<IWICImagingFactory> factory;
+    if (FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER,
+        IID_PPV_ARGS(&factory))))
+        return false;
 
-bool Texture2D::LoadFromFile(const std::string& filename)
-{
-    using Microsoft::WRL::ComPtr;
+    Microsoft::WRL::ComPtr<IWICBitmapDecoder> decoder;
+    if (FAILED(factory->CreateDecoderFromFilename(std::wstring(path.begin(), path.end()).c_str(), nullptr,
+        GENERIC_READ, WICDecodeMetadataCacheOnLoad, &decoder)))
+        return false;
 
-    ComPtr<IWICImagingFactory> wicFactory;
-    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    HRESULT hr = CoCreateInstance(
-        CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER,
-        IID_PPV_ARGS(&wicFactory));
-    if (FAILED(hr)) return false;
+    Microsoft::WRL::ComPtr<IWICBitmapFrameDecode> frame;
+    if (FAILED(decoder->GetFrame(0, &frame)))
+        return false;
 
-    ComPtr<IWICBitmapDecoder> decoder;
-    hr = wicFactory->CreateDecoderFromFilename(
-        std::wstring(filename.begin(), filename.end()).c_str(),
-        nullptr, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &decoder);
-    if (FAILED(hr)) return false;
+    Microsoft::WRL::ComPtr<IWICFormatConverter> converter;
+    if (FAILED(factory->CreateFormatConverter(&converter)))
+        return false;
 
-    ComPtr<IWICBitmapFrameDecode> frame;
-    decoder->GetFrame(0, &frame);
-
-    ComPtr<IWICFormatConverter> converter;
-    wicFactory->CreateFormatConverter(&converter);
-    converter->Initialize(frame.Get(), GUID_WICPixelFormat32bppRGBA,
-        WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom);
+    if (FAILED(converter->Initialize(frame.Get(), GUID_WICPixelFormat32bppRGBA,
+        WICBitmapDitherTypeNone, nullptr, 0.f, WICBitmapPaletteTypeCustom)))
+        return false;
 
     UINT width, height;
-    converter->GetSize(&width, &height);
-    std::vector<uint8_t> pixels(width * height * 4);
-    converter->CopyPixels(nullptr, width * 4, pixels.size(), pixels.data());
+    frame->GetSize(&width, &height);
 
-    D3D11_TEXTURE2D_DESC desc = {};
-    desc.Width = width;
-    desc.Height = height;
-    desc.MipLevels = 1;
-    desc.ArraySize = 1;
-    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    desc.Usage = D3D11_USAGE_DEFAULT;
-    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    desc.SampleDesc.Count = 1;
+    std::unique_ptr<BYTE[]> buffer(new BYTE[width * height * 4]);
+    if (FAILED(converter->CopyPixels(nullptr, width * 4, width * height * 4, buffer.get())))
+        return false;
+
+    D3D11_TEXTURE2D_DESC texDesc = {};
+    texDesc.Width = width;
+    texDesc.Height = height;
+    texDesc.MipLevels = texDesc.ArraySize = 1;
+    texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    texDesc.SampleDesc.Count = 1;
+    texDesc.Usage = D3D11_USAGE_DEFAULT;
+    texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 
     D3D11_SUBRESOURCE_DATA initData = {};
-    initData.pSysMem = pixels.data();
+    initData.pSysMem = buffer.get();
     initData.SysMemPitch = width * 4;
 
-    ComPtr<ID3D11Texture2D> texture;
-    hr = g_pd3dDevice->CreateTexture2D(&desc, &initData, &texture);
-    if (FAILED(hr)) return false;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
+    if (FAILED(g_pd3dDevice->CreateTexture2D(&texDesc, &initData, &texture)))
+        return false;
 
     D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Format = desc.Format;
+    srvDesc.Format = texDesc.Format;
     srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MipLevels = 1;
 
-    return SUCCEEDED(g_pd3dDevice->CreateShaderResourceView(texture.Get(), &srvDesc, &m_srv));
+    if (FAILED(g_pd3dDevice->CreateShaderResourceView(texture.Get(), &srvDesc, &m_srv))) {
+        std::cerr << "? Failed to create shader resource view\n";
+        return false;
+    }
+
+    std::cout << "? Loaded texture from: " << path << " (" << width << "x" << height << ")\n";
+
+
+    m_texture = texture;
+    return true;
 }

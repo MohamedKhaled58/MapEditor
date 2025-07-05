@@ -1,10 +1,9 @@
-// src/Sector.cpp
+// Sector.cpp
 #include "Sector.h"
 
 Sector::Sector(int sectorX, int sectorY)
     : m_sectorX(sectorX), m_sectorY(sectorY)
 {
-    // Initialize tiles with their absolute coordinates
     for (int y = 0; y < SECTOR_SIZE; ++y)
     {
         for (int x = 0; x < SECTOR_SIZE; ++x)
@@ -23,6 +22,12 @@ Tile& Sector::GetTile(int localX, int localY)
 {
     return m_tiles[localY * SECTOR_SIZE + localX];
 }
+
+const Tile& Sector::GetTile(int localX, int localY) const
+{
+    return m_tiles[localY * SECTOR_SIZE + localX];
+}
+
 
 void Sector::SetTile(int localX, int localY, const Tile& tile)
 {

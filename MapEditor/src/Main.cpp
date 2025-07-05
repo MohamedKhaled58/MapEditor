@@ -4,6 +4,9 @@
 #include <d3d11.h>
 #include <tchar.h>
 #include "MapEditor.h"
+#include <iostream>
+#include <io.h>
+#include <fcntl.h>
 
 // Link necessary libs
 #pragma comment(lib, "d3d11.lib")
@@ -24,8 +27,25 @@ void CleanupRenderTarget();
 bool CreateDeviceD3D(HWND hWnd);
 void CleanupDeviceD3D();
 
+void AttachConsoleWindow()
+{
+    AllocConsole();
+    FILE* dummy;
+    freopen_s(&dummy, "CONOUT$", "w", stdout);
+    freopen_s(&dummy, "CONOUT$", "w", stderr);
+    freopen_s(&dummy, "CONIN$", "r", stdin);
+    setvbuf(stdout, nullptr, _IONBF, 0);  // No buffering
+    std::cout.clear();
+    std::cerr.clear();
+    std::clog.clear();
+    std::cin.clear();
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 {
+    AttachConsoleWindow();
+    std::cout << "? Console initialized.\n";
+
     // Register window class
     WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L,
         GetModuleHandle(NULL), NULL, NULL, NULL, NULL,
@@ -50,6 +70,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport (optional)
+
     ImGui::StyleColorsDark();
 
     ImGui_ImplWin32_Init(hwnd);
@@ -77,6 +101,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 
         // Render
         ImGui::Render();
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+
         const float clear_color[4] = { 0.1f, 0.1f, 0.1f, 1.0f };
         g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, NULL);
         g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, clear_color);
@@ -153,8 +180,21 @@ void CleanupRenderTarget()
 
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    AllocConsole();
+    freopen("CONOUT$", "w", stdout);
+    freopen("CONOUT$", "w", stderr);
+
+
+
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
         return true;
+    // ? Initialize COM
+    if (FAILED(CoInitializeEx(nullptr, COINIT_MULTITHREADED)))
+    {
+        MessageBoxA(NULL, "Failed to initialize COM.", "Error", MB_OK | MB_ICONERROR);
+        return -1;
+    }
+
 
     switch (msg)
     {
@@ -171,5 +211,8 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         return 0;
     }
 
+
+
+    CoUninitialize();
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }

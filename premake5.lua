@@ -44,7 +44,9 @@ architecture "x64"
 
 		links {
 		    "d3d11",
-		    "dxgi"
+		    "dxgi",
+			"windowscodecs.lib"
+
 		}
 
 
