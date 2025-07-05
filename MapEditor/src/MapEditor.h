@@ -13,6 +13,9 @@ public:
 
     void DrawUI();
     void LoadMap(const std::string& dmapFile, const std::string& dnsFolder);
+    void LoadConquerDMap(const std::string& dmapFile, const std::string& dnsFolder);
+    void LoadConquerPK(const std::string& pkFile);
+    void LoadConquerDDS(const std::string& ddsFile);
     void LoadBackgroundImage(const std::string& path);
     void ExportMap(const std::string& dnsFolder, const std::string& dmapFile);
     void ImportImageAsTiles(const std::string& path, int tileSize);

@@ -43,6 +43,13 @@ void AttachConsoleWindow()
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
 {
+    // Initialize COM for WIC (Windows Imaging Component)
+    HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    if (FAILED(hr)) {
+        MessageBoxA(NULL, "Failed to initialize COM.", "Error", MB_OK | MB_ICONERROR);
+        return -1;
+    }
+
     AttachConsoleWindow();
     std::cout << "? Console initialized.\n";
 
@@ -60,6 +67,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
     {
         CleanupDeviceD3D();
         UnregisterClass(wc.lpszClassName, wc.hInstance);
+        CoUninitialize();
         return 1;
     }
 
@@ -120,6 +128,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int)
     CleanupDeviceD3D();
     DestroyWindow(hwnd);
     UnregisterClass(wc.lpszClassName, wc.hInstance);
+    CoUninitialize();
 
     return 0;
 }
@@ -184,17 +193,8 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     freopen("CONOUT$", "w", stdout);
     freopen("CONOUT$", "w", stderr);
 
-
-
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
         return true;
-    // ? Initialize COM
-    if (FAILED(CoInitializeEx(nullptr, COINIT_MULTITHREADED)))
-    {
-        MessageBoxA(NULL, "Failed to initialize COM.", "Error", MB_OK | MB_ICONERROR);
-        return -1;
-    }
-
 
     switch (msg)
     {
@@ -211,8 +211,5 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         return 0;
     }
 
-
-
-    CoUninitialize();
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }

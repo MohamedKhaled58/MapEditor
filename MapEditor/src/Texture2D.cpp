@@ -11,40 +11,67 @@ Texture2D::~Texture2D() {}
 
 bool Texture2D::LoadFromFile(const std::string& path)
 {
-
     if (!g_pd3dDevice)
     {
         std::cerr << "Error: Direct3D device not initialized!\n";
         return false;
     }
+
+    std::cout << "Loading texture from: " << path << std::endl;
+
     Microsoft::WRL::ComPtr<IWICImagingFactory> factory;
-    if (FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER,
-        IID_PPV_ARGS(&factory))))
+    HRESULT hr = CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER,
+        IID_PPV_ARGS(&factory));
+    if (FAILED(hr))
+    {
+        std::cerr << "Failed to create WIC factory. HRESULT: 0x" << std::hex << hr << std::dec << std::endl;
         return false;
+    }
 
     Microsoft::WRL::ComPtr<IWICBitmapDecoder> decoder;
-    if (FAILED(factory->CreateDecoderFromFilename(std::wstring(path.begin(), path.end()).c_str(), nullptr,
-        GENERIC_READ, WICDecodeMetadataCacheOnLoad, &decoder)))
+    hr = factory->CreateDecoderFromFilename(std::wstring(path.begin(), path.end()).c_str(), nullptr,
+        GENERIC_READ, WICDecodeMetadataCacheOnLoad, &decoder);
+    if (FAILED(hr))
+    {
+        std::cerr << "Failed to create WIC decoder from file. HRESULT: 0x" << std::hex << hr << std::dec << std::endl;
+        std::cerr << "File path: " << path << std::endl;
         return false;
+    }
 
     Microsoft::WRL::ComPtr<IWICBitmapFrameDecode> frame;
-    if (FAILED(decoder->GetFrame(0, &frame)))
+    hr = decoder->GetFrame(0, &frame);
+    if (FAILED(hr))
+    {
+        std::cerr << "Failed to get frame from decoder. HRESULT: 0x" << std::hex << hr << std::dec << std::endl;
         return false;
+    }
 
     Microsoft::WRL::ComPtr<IWICFormatConverter> converter;
-    if (FAILED(factory->CreateFormatConverter(&converter)))
+    hr = factory->CreateFormatConverter(&converter);
+    if (FAILED(hr))
+    {
+        std::cerr << "Failed to create WIC format converter. HRESULT: 0x" << std::hex << hr << std::dec << std::endl;
         return false;
+    }
 
-    if (FAILED(converter->Initialize(frame.Get(), GUID_WICPixelFormat32bppRGBA,
-        WICBitmapDitherTypeNone, nullptr, 0.f, WICBitmapPaletteTypeCustom)))
+    hr = converter->Initialize(frame.Get(), GUID_WICPixelFormat32bppRGBA,
+        WICBitmapDitherTypeNone, nullptr, 0.f, WICBitmapPaletteTypeCustom);
+    if (FAILED(hr))
+    {
+        std::cerr << "Failed to initialize WIC format converter. HRESULT: 0x" << std::hex << hr << std::dec << std::endl;
         return false;
+    }
 
     UINT width, height;
     frame->GetSize(&width, &height);
 
     std::unique_ptr<BYTE[]> buffer(new BYTE[width * height * 4]);
-    if (FAILED(converter->CopyPixels(nullptr, width * 4, width * height * 4, buffer.get())))
+    hr = converter->CopyPixels(nullptr, width * 4, width * height * 4, buffer.get());
+    if (FAILED(hr))
+    {
+        std::cerr << "Failed to copy pixels from WIC converter. HRESULT: 0x" << std::hex << hr << std::dec << std::endl;
         return false;
+    }
 
     D3D11_TEXTURE2D_DESC texDesc = {};
     texDesc.Width = width;
@@ -60,16 +87,21 @@ bool Texture2D::LoadFromFile(const std::string& path)
     initData.SysMemPitch = width * 4;
 
     Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
-    if (FAILED(g_pd3dDevice->CreateTexture2D(&texDesc, &initData, &texture)))
+    hr = g_pd3dDevice->CreateTexture2D(&texDesc, &initData, &texture);
+    if (FAILED(hr))
+    {
+        std::cerr << "Failed to create Direct3D texture. HRESULT: 0x" << std::hex << hr << std::dec << std::endl;
         return false;
+    }
 
     D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Format = texDesc.Format;
     srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MipLevels = 1;
 
-    if (FAILED(g_pd3dDevice->CreateShaderResourceView(texture.Get(), &srvDesc, &m_srv))) {
-        std::cerr << "? Failed to create shader resource view\n";
+    hr = g_pd3dDevice->CreateShaderResourceView(texture.Get(), &srvDesc, &m_srv);
+    if (FAILED(hr)) {
+        std::cerr << "Failed to create shader resource view. HRESULT: 0x" << std::hex << hr << std::dec << std::endl;
         return false;
     }
 
